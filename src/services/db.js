@@ -2,7 +2,7 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
 const dbPath = path.join(__dirname, '..', '..', 'db', 'emodul_pai.sqlite');
-const db = new sqlite3.Database(dbPath);
+const db = require('../services/db-mysql');
 
 // Simple helpers with Promise
 function run(query, params = []) {

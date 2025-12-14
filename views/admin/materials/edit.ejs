@@ -2,9 +2,10 @@
 <div class="mb-4">
     <h2 class="fw-bold mb-2"
         style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-        ✏️ Edit Materi
+        🎥 Edit Video Pembelajaran
     </h2>
-    <p class="text-muted">Perbarui informasi materi pembelajaran</p>
+    <p class="text-muted">Perbarui video pembelajaran untuk Unit: <%= unit.title %>
+    </p>
 </div>
 
 <!-- Breadcrumb -->
@@ -12,7 +13,7 @@
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="/admin/materials">Materi</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+        <li class="breadcrumb-item active" aria-current="page">Edit Video</li>
     </ol>
 </nav>
 
@@ -30,127 +31,340 @@
 </div>
 
 <% if (error) { %>
-    <div class="alert alert-danger">
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
         <%= error %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
     <% } %>
 
-        <div class="card border-0 shadow-sm">
-            <div class="card-body">
-                <form method="POST" action="/admin/units/<%= unit.id %>/materials/<%= material.id %>?_method=PUT">
-
-                    <div class="mb-3">
-                        <label for="title" class="form-label fw-bold">Judul Materi <span
-                                class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="title" name="title" value="<%= material.title %>"
-                            required>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="content" class="form-label fw-bold">Konten Materi</label>
-                        <textarea class="form-control" id="content" name="content"
-                            rows="8"><%= material.content || '' %></textarea>
-                        <small class="text-muted">Isi dengan konten pembelajaran lengkap</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="media_type" class="form-label fw-bold">Tipe Media</label>
-                        <select class="form-select" id="media_type" name="media_type">
-                            <option value="">-- Tidak Ada Media --</option>
-                            <option value="TEXT" <%=material.media_type==='TEXT' ? 'selected' : '' %>>TEXT</option>
-                            <option value="VIDEO" <%=material.media_type==='VIDEO' ? 'selected' : '' %>>VIDEO</option>
-                            <option value="AUDIO" <%=material.media_type==='AUDIO' ? 'selected' : '' %>>AUDIO</option>
-                            <option value="IMAGE" <%=material.media_type==='IMAGE' ? 'selected' : '' %>>IMAGE</option>
-                            <option value="DOCUMENT" <%=material.media_type==='DOCUMENT' ? 'selected' : '' %>>DOCUMENT
-                            </option>
-                            <option value="ANIMATION" <%=material.media_type==='ANIMATION' ? 'selected' : '' %>
-                                >ANIMATION</option>
-                        </select>
-                    </div>
-
-                    <!-- Pilihan Upload Method -->
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Metode Upload Media</label>
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="upload_method" id="method_url" value="url"
-                                checked>
-                            <label class="btn btn-outline-primary" for="method_url">
-                                <i class="bi bi-link-45deg"></i> URL/Link
-                            </label>
-
-                            <input type="radio" class="btn-check" name="upload_method" id="method_file" value="file">
-                            <label class="btn btn-outline-primary" for="method_file">
-                                <i class="bi bi-file-earmark-arrow-up"></i> Upload File
-                            </label>
+        <!-- Current Video Preview (if exists) -->
+        <% if (material.media_url) { %>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="bi bi-play-circle-fill text-primary"></i> Video Saat Ini
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="video-container">
+                                <% if (material.media_url.includes('youtube.com') ||
+                                    material.media_url.includes('youtu.be')) { %>
+                                    <iframe src="<%= material.media_url %>" frameborder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowfullscreen loading="lazy">
+                                    </iframe>
+                                    <% } else if (material.media_url.startsWith('/uploads/')) { %>
+                                        <video controls preload="metadata" <% if (material.video_thumbnail) { %>poster="
+                                            <%= material.video_thumbnail %>"<% } %>>
+                                                    <source src="<%= material.media_url %>" type="video/mp4">
+                                                    Browser Anda tidak mendukung video HTML5.
+                                        </video>
+                                        <% } else { %>
+                                            <a href="<%= material.media_url %>" target="_blank" class="btn btn-primary">
+                                                <i class="bi bi-play-fill"></i> Buka Video
+                                            </a>
+                                            <% } %>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-box">
+                                <p><strong>Judul:</strong>
+                                    <%= material.title %>
+                                </p>
+                                <% if (material.video_duration) { %>
+                                    <p><strong>Durasi:</strong>
+                                        <%= Math.floor(material.video_duration / 60) %> menit <%=
+                                                material.video_duration % 60 %> detik
+                                    </p>
+                                    <% } %>
+                                        <% if (material.video_file_size) { %>
+                                            <p><strong>Ukuran File:</strong>
+                                                <%= (material.video_file_size / (1024 * 1024)).toFixed(2) %> MB
+                                            </p>
+                                            <% } %>
+                                                <p><strong>Tipe:</strong> <span class="badge bg-info">
+                                                        <%= material.media_type || 'VIDEO' %>
+                                                    </span></p>
+                            </div>
                         </div>
                     </div>
-
-                    <!-- URL Input -->
-                    <div class="mb-3" id="url_input">
-                        <label for="media_url" class="form-label fw-bold">URL Media</label>
-                        <input type="text" class="form-control" id="media_url" name="media_url"
-                            value="<%= material.media_url || '' %>">
-                        <small class="text-muted">Contoh: https://www.youtube.com/embed/abc123 atau URL lainnya</small>
-                    </div>
-
-                    <!-- File Upload (Hidden by default) -->
-                    <div class="mb-3 d-none" id="file_input">
-                        <label for="media_file" class="form-label fw-bold">Upload File Media</label>
-                        <input type="file" class="form-control" id="media_file" name="media_file" accept="*/*">
-                        <small class="text-muted">Upload file dari komputer Anda (Max 50MB)</small>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-circle"></i> Simpan Perubahan
-                        </button>
-                        <a href="/admin/materials" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle"></i> Batal
-                        </a>
-                    </div>
-                </form>
+                </div>
             </div>
-        </div>
+            <% } %>
 
-        <script>
-            // Toggle between URL and File upload
-            document.querySelectorAll('input[name="upload_method"]').forEach((radio) => {
-                radio.addEventListener('change', function () {
-                    const urlInput = document.getElementById('url_input');
-                    const fileInput = document.getElementById('file_input');
+                <!-- Form Edit -->
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <form method="POST"
+                            action="/admin/units/<%= unit.id %>/materials/<%= material.id %>?_method=PUT"
+                            enctype="multipart/form-data" id="editVideoForm">
 
-                    if (this.value === 'url') {
-                        urlInput.classList.remove('d-none');
-                        fileInput.classList.add('d-none');
-                        document.getElementById('media_file').value = '';
-                    } else {
-                        urlInput.classList.add('d-none');
-                        fileInput.classList.remove('d-none');
-                        document.getElementById('media_url').value = '';
+                            <div class="mb-4">
+                                <label for="title" class="form-label fw-bold">
+                                    <i class="bi bi-card-heading"></i> Judul Video <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" class="form-control form-control-lg" id="title" name="title"
+                                    value="<%= material.title %>" required>
+                                <small class="text-muted">Berikan judul yang jelas dan menarik</small>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="content" class="form-label fw-bold">
+                                    <i class="bi bi-file-text"></i> Deskripsi Video (Opsional)
+                                </label>
+                                <textarea class="form-control" id="content" name="content"
+                                    rows="4"><%= material.content || '' %></textarea>
+                                <small class="text-muted">Tambahkan deskripsi atau ringkasan video</small>
+                            </div>
+
+                            <input type="hidden" name="media_type" value="VIDEO">
+                            <input type="hidden" name="is_video_based" value="1">
+
+                            <!-- Pilihan Upload Method -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    <i class="bi bi-cloud-upload"></i> Metode Upload Video
+                                </label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="upload_method" id="method_url"
+                                        value="url" checked>
+                                    <label class="btn btn-outline-primary" for="method_url">
+                                        <i class="bi bi-link-45deg"></i> URL/Link (YouTube, Vimeo, dll)
+                                    </label>
+
+                                    <input type="radio" class="btn-check" name="upload_method" id="method_file"
+                                        value="file">
+                                    <label class="btn btn-outline-primary" for="method_file">
+                                        <i class="bi bi-file-earmark-arrow-up"></i> Upload File Video
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- URL Input -->
+                            <div class="mb-4" id="url_input">
+                                <label for="media_url" class="form-label fw-bold">
+                                    <i class="bi bi-link-45deg"></i> URL Video
+                                </label>
+                                <input type="text" class="form-control" id="media_url" name="media_url"
+                                    value="<%= material.media_url || '' %>"
+                                    placeholder="https://www.youtube.com/embed/VIDEO_ID atau URL lainnya">
+                                <small class="text-muted">
+                                    Gunakan URL embed dari YouTube/Vimeo untuk performa terbaik<br>
+                                    Contoh YouTube: https://www.youtube.com/embed/dQw4w9WgXcQ
+                                </small>
+                            </div>
+
+                            <!-- File Upload (Hidden by default) -->
+                            <div class="mb-4 d-none" id="file_input">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle-fill"></i>
+                                    <strong>Tips Upload Video:</strong><br>
+                                    • Maksimal ukuran file: <strong>200MB</strong><br>
+                                    • Format yang didukung: MP4, WEBM, MOV, AVI<br>
+                                    • Durasi: <strong>Tidak terbatas</strong> (2 menit - 10 menit semua bisa)<br>
+                                    • Setiap unit bisa punya <strong>banyak video</strong> (7+ video tidak masalah)<br>
+                                    • Rekomendasi: Kompres video untuk performa lebih baik
+                                </div>
+                                <label for="video_file" class="form-label fw-bold">
+                                    <i class="bi bi-film"></i> Upload File Video
+                                </label>
+                                <input type="file" class="form-control form-control-lg" id="video_file"
+                                    name="video_file" accept="video/mp4,video/webm,video/quicktime,video/x-msvideo">
+                                <small class="text-muted">Format: MP4, WEBM, MOV, AVI (Max: 100MB)</small>
+
+                                <div class="mt-3">
+                                    <label for="thumbnail_file" class="form-label fw-bold">
+                                        <i class="bi bi-image"></i> Thumbnail/Poster Video (Opsional)
+                                    </label>
+                                    <input type="file" class="form-control" id="thumbnail_file" name="thumbnail_file"
+                                        accept="image/jpeg,image/png,image/webp">
+                                    <small class="text-muted">Gambar preview sebelum video diputar (JPG, PNG, WEBP, Max:
+                                        5MB)</small>
+                                </div>
+
+                                <div class="mt-3">
+                                    <label for="video_duration" class="form-label fw-bold">
+                                        <i class="bi bi-clock"></i> Durasi Video (dalam detik)
+                                    </label>
+                                    <input type="number" class="form-control" id="video_duration" name="video_duration"
+                                        value="<%= material.video_duration || 126 %>" placeholder="126">
+                                    <small class="text-muted">Contoh: 2 menit 6 detik = 126 detik</small>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="d-flex gap-2 justify-content-between align-items-center">
+                                <div>
+                                    <small class="text-muted">
+                                        <i class="bi bi-info-circle"></i>
+                                        Perubahan akan langsung tersimpan dan terlihat oleh mahasiswa
+                                    </small>
+                                </div>
+                                <div class="d-flex gap-2 justify-content-between">
+                                    <div>
+                                        <!-- Tombol Hapus Video -->
+                                        <form method="POST"
+                                            action="/admin/units/<%= unit.id %>/materials/<%= material.id %>/delete"
+                                            style="display: inline;">
+                                            <button type="submit" class="btn btn-danger btn-lg px-4">
+                                                <i class="bi bi-trash"></i> Hapus Video
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a href="/admin/materials" class="btn btn-outline-secondary btn-lg">
+                                            <i class="bi bi-x-circle"></i> Batal
+                                        </a>
+                                        <button type="submit" class="btn btn-primary btn-lg px-4">
+                                            <i class="bi bi-check-circle"></i> Simpan Perubahan
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                    // Toggle between URL and File upload
+                    document.querySelectorAll('input[name="upload_method"]').forEach((radio) => {
+                        radio.addEventListener('change', function () {
+                            const urlInput = document.getElementById('url_input');
+                            const fileInput = document.getElementById('file_input');
+
+                            if (this.value === 'url') {
+                                urlInput.classList.remove('d-none');
+                                fileInput.classList.add('d-none');
+                                // Clear file inputs
+                                document.getElementById('video_file').value = '';
+                                document.getElementById('thumbnail_file').value = '';
+                            } else {
+                                urlInput.classList.add('d-none');
+                                fileInput.classList.remove('d-none');
+                                // Clear URL input
+                                document.getElementById('media_url').value = '';
+                            }
+                        });
+                    });
+
+                    // File size validation
+                    const videoFileInput = document.getElementById('video_file');
+                    videoFileInput.addEventListener('change', function () {
+                        const file = this.files[0];
+                        if (file) {
+                            const fileSize = file.size / (1024 * 1024); // Convert to MB
+                            if (fileSize > 200) {
+                                alert('Ukuran file terlalu besar! Maksimal 200MB. File Anda: ' + fileSize.toFixed(2) + 'MB');
+                                this.value = '';
+                            } else {
+                                const sizeInfo = document.createElement('small');
+                                sizeInfo.className = 'text-success d-block mt-1';
+                                sizeInfo.innerHTML = '<i class="bi bi-check-circle-fill"></i> File terpilih: ' + file.name + ' (' + fileSize.toFixed(2) + ' MB)';
+                                this.parentElement.querySelector('small.text-success')?.remove();
+                                this.parentElement.appendChild(sizeInfo);
+                            }
+                        }
+                    });
+
+                    // Form submission confirmation
+                    document.getElementById('editVideoForm').addEventListener('submit', function (e) {
+                        const uploadMethod = document.querySelector('input[name="upload_method"]:checked').value;
+
+                        if (uploadMethod === 'file') {
+                            const videoFile = document.getElementById('video_file').files[0];
+                            if (videoFile) {
+                                if (!confirm('Anda akan upload video baru. File lama akan diganti. Lanjutkan?')) {
+                                    e.preventDefault();
+                                }
+                            }
+                        }
+                    });
+                </script>
+
+                <style>
+                    .card {
+                        border-radius: 16px;
+                        transition: transform 0.3s ease, box-shadow 0.3s ease;
                     }
-                });
-            });
-        </script>
 
-        <style>
-            .card {
-                border-radius: 12px;
-            }
+                    .card:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+                    }
 
-            .form-label {
-                color: #2d3748;
-            }
+                    .form-label {
+                        color: #2d3748;
+                        font-size: 0.95rem;
+                    }
 
-            .btn-primary {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                border: none;
-            }
+                    .form-control:focus,
+                    .form-select:focus {
+                        border-color: #667eea;
+                        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+                    }
 
-            .btn-primary:hover {
-                background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-                transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-            }
-        </style>
+                    .btn-primary {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border: none;
+                        transition: all 0.3s ease;
+                    }
+
+                    .btn-primary:hover {
+                        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+                    }
+
+                    .btn-outline-primary:hover {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        border-color: transparent;
+                    }
+
+                    .video-container {
+                        position: relative;
+                        padding-bottom: 56.25%;
+                        /* 16:9 aspect ratio */
+                        height: 0;
+                        overflow: hidden;
+                        border-radius: 12px;
+                        background: #f8f9fa;
+                    }
+
+                    .video-container iframe,
+                    .video-container video {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        border-radius: 12px;
+                    }
+
+                    .info-box {
+                        background: #f8f9fa;
+                        padding: 1.5rem;
+                        border-radius: 12px;
+                        border-left: 4px solid #667eea;
+                    }
+
+                    .info-box p {
+                        margin-bottom: 0.75rem;
+                    }
+
+                    .info-box p:last-child {
+                        margin-bottom: 0;
+                    }
+
+                    .alert-info {
+                        background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+                        border: none;
+                        border-left: 4px solid #0ea5e9;
+                    }
+
+                    .badge {
+                        font-size: 0.85rem;
+                        padding: 0.4em 0.8em;
+                    }
+                </style>

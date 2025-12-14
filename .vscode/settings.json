@@ -1,0 +1,27 @@
+{
+    "files.associations": {
+        "*.ejs": "ejs"
+    },
+    "emmet.includeLanguages": {
+        "ejs": "html"
+    },
+    "[ejs]": {
+        "editor.formatOnSave": false
+    },
+    "html.validate.scripts": false,
+    "html.validate.styles": false,
+    "css.validate": false,
+    "javascript.validate.enable": true,
+    "editor.quickSuggestions": {
+        "strings": true
+    },
+    "files.exclude": {
+        "**/node_modules": true,
+        "**/.git": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/.git": true
+    }
+}

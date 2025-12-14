@@ -4,6 +4,8 @@ const db = require('../services/db-mysql');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { uploadVideoWithThumbnail } = require('../middleware/videoUpload');
+
 
 // Konfigurasi multer untuk upload media
 const mediaStorage = multer.diskStorage({
@@ -81,6 +83,191 @@ router.get('/units/:id', async (req, res) => {
   const activities = await db.getActivitiesByUnit(unitId);
   res.render('lecturer/units/show', { unit: unitRow, materials, activities });
 });
+
+// ========== MANAJEMEN MATERI (VIDEO) ==========
+// Dosen bisa mengelola materi/video pembelajaran
+
+// List all materials
+router.get('/materials', async (req, res) => {
+  try {
+    const materials = await db.query(`
+      SELECT 
+        m.id, m.title, m.content, m.media_type, m.media_url, m.created_at, m.video_duration, m.video_file_size,
+        u.id as unit_id, u.title as unit_title,
+        mdl.id as module_id, mdl.title as module_title
+      FROM materials m
+      JOIN units u ON m.unit_id = u.id
+      JOIN modules mdl ON u.module_id = mdl.id
+      ORDER BY m.created_at DESC
+    `);
+    res.render('admin/materials/index', { materials }); // Reuse admin view
+  } catch (err) {
+    console.error('Get all materials error:', err);
+    res.redirect('/lecturer/dashboard');
+  }
+});
+
+// New material form
+router.get('/units/:unitId/materials/new', async (req, res) => {
+  const unitId = req.params.unitId;
+  const units = await db.query('SELECT * FROM units WHERE id = ?', [unitId]);
+  if (!units) return res.redirect('/lecturer/modules');
+  res.render('admin/materials/new', { unit: units }); // Reuse admin view
+});
+
+// Create new material/video
+router.post('/units/:unitId/materials', uploadVideoWithThumbnail, async (req, res) => {
+  const unitId = req.params.unitId;
+  const { title, content, media_type, media_url, upload_method, is_video_based, video_duration } = req.body;
+
+  let finalMediaUrl = media_url;
+  let thumbnailUrl = null;
+  let videoFileSize = null;
+  let videoDuration = video_duration ? parseInt(video_duration) : null;
+
+  if (upload_method === 'file' && req.files) {
+    if (req.files['video_file'] && req.files['video_file'][0]) {
+      const videoFile = req.files['video_file'][0];
+      finalMediaUrl = '/uploads/videos/' + videoFile.filename;
+      videoFileSize = videoFile.size;
+    }
+
+    if (req.files['thumbnail_file'] && req.files['thumbnail_file'][0]) {
+      const thumbFile = req.files['thumbnail_file'][0];
+      thumbnailUrl = '/uploads/thumbnails/' + thumbFile.filename;
+    }
+  }
+
+  const isVideoBasedFlag = media_type === 'VIDEO' || is_video_based === '1' ? 1 : 0;
+
+  await db.query(
+    'INSERT INTO materials (unit_id, title, content, media_type, media_url, is_video_based, video_file_size, video_duration, video_thumbnail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [unitId, title, content || '', media_type || 'VIDEO', finalMediaUrl, isVideoBasedFlag, videoFileSize, videoDuration, thumbnailUrl]
+  );
+
+  const unitRow = await db.queryOne('SELECT module_id FROM units WHERE id = ?', [unitId]);
+  if (unitRow) {
+    return res.redirect(`/lecturer/modules/${unitRow.module_id}`);
+  }
+  return res.redirect('/lecturer/modules');
+});
+
+// Edit material form
+router.get('/units/:unitId/materials/:id/edit', async (req, res) => {
+  const unitId = req.params.unitId;
+  const materialId = req.params.id;
+  try {
+    const material = await db.queryOne('SELECT * FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+    if (!material) return res.redirect('/lecturer/materials');
+    const unit = await db.queryOne('SELECT * FROM units WHERE id = ?', [unitId]);
+    res.render('admin/materials/edit', { material, unit, error: null }); // Reuse admin view
+  } catch (err) {
+    console.error('Get material error:', err);
+    res.redirect('/lecturer/materials');
+  }
+});
+
+// Update material/video
+router.put('/units/:unitId/materials/:id', uploadVideoWithThumbnail, async (req, res) => {
+  const unitId = req.params.unitId;
+  const materialId = req.params.id;
+  const { title, content, media_type, media_url, upload_method, is_video_based, video_duration } = req.body;
+
+  const oldMaterial = await db.queryOne('SELECT * FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+
+  let finalMediaUrl = media_url || oldMaterial.media_url || null;
+  let thumbnailUrl = oldMaterial.video_thumbnail || null;
+  let videoFileSize = oldMaterial.video_file_size || null;
+  let videoDuration = video_duration ? parseInt(video_duration) : (oldMaterial.video_duration || null);
+
+  if (upload_method === 'file' && req.files) {
+    if (req.files['video_file'] && req.files['video_file'][0]) {
+      const videoFile = req.files['video_file'][0];
+      finalMediaUrl = '/uploads/videos/' + videoFile.filename;
+      videoFileSize = videoFile.size;
+
+      if (oldMaterial.media_url && oldMaterial.media_url.startsWith('/uploads/videos/')) {
+        const oldPath = path.join(__dirname, '../../public', oldMaterial.media_url);
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+    }
+
+    if (req.files['thumbnail_file'] && req.files['thumbnail_file'][0]) {
+      const thumbFile = req.files['thumbnail_file'][0];
+      thumbnailUrl = '/uploads/thumbnails/' + thumbFile.filename;
+
+      if (oldMaterial.video_thumbnail && oldMaterial.video_thumbnail.startsWith('/uploads/thumbnails/')) {
+        const oldThumbPath = path.join(__dirname, '../../public', oldMaterial.video_thumbnail);
+        if (fs.existsSync(oldThumbPath)) {
+          fs.unlinkSync(oldThumbPath);
+        }
+      }
+    }
+  }
+
+  const isVideoBasedFlag = media_type === 'VIDEO' || is_video_based === '1' ? 1 : 0;
+
+  try {
+    await db.query(
+      'UPDATE materials SET title = ?, content = ?, media_type = ?, media_url = ?, is_video_based = ?, video_file_size = ?, video_duration = ?, video_thumbnail = ? WHERE id = ? AND unit_id = ?',
+      [title, content || '', media_type || 'VIDEO', finalMediaUrl, isVideoBasedFlag, videoFileSize, videoDuration, thumbnailUrl, materialId, unitId]
+    );
+    const unitRow = await db.queryOne('SELECT module_id FROM units WHERE id = ?', [unitId]);
+    if (unitRow) {
+      return res.redirect(`/lecturer/modules/${unitRow.module_id}`);
+    }
+    return res.redirect('/lecturer/materials');
+  } catch (err) {
+    console.error('Update material error:', err);
+    const material = await db.queryOne('SELECT * FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+    const unit = await db.queryOne('SELECT * FROM units WHERE id = ?', [unitId]);
+    res.status(400).render('admin/materials/edit', { material, unit, error: 'Gagal memperbarui materi.' });
+  }
+});
+
+// Delete material (optional - jika belum ada)
+router.delete('/units/:unitId/materials/:id', async (req, res) => {
+  const unitId = req.params.unitId;
+  const materialId = req.params.id;
+
+  try {
+    // Get material info untuk hapus file
+    const material = await db.queryOne('SELECT * FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+
+    if (material) {
+      // Hapus file video jika ada
+      if (material.media_url && material.media_url.startsWith('/uploads/videos/')) {
+        const videoPath = path.join(__dirname, '../../public', material.media_url);
+        if (fs.existsSync(videoPath)) {
+          fs.unlinkSync(videoPath);
+        }
+      }
+
+      // Hapus thumbnail jika ada
+      if (material.video_thumbnail && material.video_thumbnail.startsWith('/uploads/thumbnails/')) {
+        const thumbPath = path.join(__dirname, '../../public', material.video_thumbnail);
+        if (fs.existsSync(thumbPath)) {
+          fs.unlinkSync(thumbPath);
+        }
+      }
+
+      // Delete from database
+      await db.query('DELETE FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+    }
+
+    const unitRow = await db.queryOne('SELECT module_id FROM units WHERE id = ?', [unitId]);
+    if (unitRow) {
+      return res.redirect(`/lecturer/modules/${unitRow.module_id}`);
+    }
+    return res.redirect('/lecturer/materials');
+  } catch (err) {
+    console.error('Delete material error:', err);
+    res.redirect('/lecturer/materials');
+  }
+});
+
 
 // ========== MANAJEMEN SKENARIO PBL ==========
 router.get('/pbl-scenarios', async (req, res) => {

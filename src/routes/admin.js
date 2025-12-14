@@ -5,6 +5,8 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { uploadVideoWithThumbnail } = require('../middleware/videoUpload');
+
 
 // Konfigurasi multer untuk upload media
 const mediaStorage = multer.diskStorage({
@@ -255,18 +257,37 @@ router.get('/units/:unitId/materials/new', async (req, res) => {
   res.render('admin/materials/new', { unit: units });
 });
 
-router.post('/units/:unitId/materials', uploadMedia.single('media_file'), async (req, res) => {
+router.post('/units/:unitId/materials', uploadVideoWithThumbnail, async (req, res) => {
   const unitId = req.params.unitId;
-  const { title, content, media_type, media_url, upload_method } = req.body;
+  const { title, content, media_type, media_url, upload_method, is_video_based, video_duration } = req.body;
 
   let finalMediaUrl = media_url;
+  let thumbnailUrl = null;
+  let videoFileSize = null;
+  let videoDuration = video_duration ? parseInt(video_duration) : null;
 
-  // Jika upload file
-  if (upload_method === 'file' && req.file) {
-    finalMediaUrl = '/uploads/media/' + req.file.filename;
+  // Jika upload file video
+  if (upload_method === 'file' && req.files) {
+    if (req.files['video_file'] && req.files['video_file'][0]) {
+      const videoFile = req.files['video_file'][0];
+      finalMediaUrl = '/uploads/videos/' + videoFile.filename;
+      videoFileSize = videoFile.size; // dalam bytes
+    }
+
+    if (req.files['thumbnail_file'] && req.files['thumbnail_file'][0]) {
+      const thumbFile = req.files['thumbnail_file'][0];
+      thumbnailUrl = '/uploads/thumbnails/' + thumbFile.filename;
+    }
   }
 
-  await db.createMaterial({ unit_id: unitId, title, content, media_type, media_url: finalMediaUrl });
+  // Untuk video dari URL (YouTube, Vimeo, dll)
+  const isVideoBasedFlag = media_type === 'VIDEO' || is_video_based === '1' ? 1 : 0;
+
+  await db.query(
+    'INSERT INTO materials (unit_id, title, content, media_type, media_url, is_video_based, video_file_size, video_duration, video_thumbnail) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [unitId, title, content || '', media_type || 'VIDEO', finalMediaUrl, isVideoBasedFlag, videoFileSize, videoDuration, thumbnailUrl]
+  );
+
   // Cari module_id untuk redirect kembali ke halaman modul terkait
   const unitRow = await db.queryOne('SELECT module_id FROM units WHERE id = ?', [unitId]);
   if (unitRow) {
@@ -289,22 +310,55 @@ router.get('/units/:unitId/materials/:id/edit', async (req, res) => {
   }
 });
 
-router.put('/units/:unitId/materials/:id', uploadMedia.single('media_file'), async (req, res) => {
+router.put('/units/:unitId/materials/:id', uploadVideoWithThumbnail, async (req, res) => {
   const unitId = req.params.unitId;
   const materialId = req.params.id;
-  const { title, content, media_type, media_url, upload_method } = req.body;
+  const { title, content, media_type, media_url, upload_method, is_video_based, video_duration } = req.body;
 
-  let finalMediaUrl = media_url;
+  // Ambil material lama untuk cek file yang perlu dihapus
+  const oldMaterial = await db.queryOne('SELECT * FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
 
-  // Jika upload file
-  if (upload_method === 'file' && req.file) {
-    finalMediaUrl = '/uploads/media/' + req.file.filename;
+  let finalMediaUrl = media_url || oldMaterial.media_url || null;
+  let thumbnailUrl = oldMaterial.video_thumbnail || null;
+  let videoFileSize = oldMaterial.video_file_size || null;
+  let videoDuration = video_duration ? parseInt(video_duration) : (oldMaterial.video_duration || null);
+
+  // Jika upload file video baru
+  if (upload_method === 'file' && req.files) {
+    if (req.files['video_file'] && req.files['video_file'][0]) {
+      const videoFile = req.files['video_file'][0];
+      finalMediaUrl = '/uploads/videos/' + videoFile.filename;
+      videoFileSize = videoFile.size;
+
+      // Hapus file video lama jika ada
+      if (oldMaterial.media_url && oldMaterial.media_url.startsWith('/uploads/videos/')) {
+        const oldPath = path.join(__dirname, '../../public', oldMaterial.media_url);
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
+      }
+    }
+
+    if (req.files['thumbnail_file'] && req.files['thumbnail_file'][0]) {
+      const thumbFile = req.files['thumbnail_file'][0];
+      thumbnailUrl = '/uploads/thumbnails/' + thumbFile.filename;
+
+      // Hapus thumbnail lama jika ada
+      if (oldMaterial.video_thumbnail && oldMaterial.video_thumbnail.startsWith('/uploads/thumbnails/')) {
+        const oldThumbPath = path.join(__dirname, '../../public', oldMaterial.video_thumbnail);
+        if (fs.existsSync(oldThumbPath)) {
+          fs.unlinkSync(oldThumbPath);
+        }
+      }
+    }
   }
+
+  const isVideoBasedFlag = media_type === 'VIDEO' || is_video_based === '1' ? 1 : 0;
 
   try {
     await db.query(
-      'UPDATE materials SET title = ?, content = ?, media_type = ?, media_url = ? WHERE id = ? AND unit_id = ?',
-      [title, content, media_type, finalMediaUrl, materialId, unitId]
+      'UPDATE materials SET title = ?, content = ?, media_type = ?, media_url = ?, is_video_based = ?, video_file_size = ?, video_duration = ?, video_thumbnail = ? WHERE id = ? AND unit_id = ?',
+      [title, content || '', media_type || 'VIDEO', finalMediaUrl, isVideoBasedFlag, videoFileSize, videoDuration, thumbnailUrl, materialId, unitId]
     );
     const unitRow = await db.queryOne('SELECT module_id FROM units WHERE id = ?', [unitId]);
     if (unitRow) {
@@ -318,6 +372,117 @@ router.put('/units/:unitId/materials/:id', uploadMedia.single('media_file'), asy
     res.status(400).render('admin/materials/edit', { material, unit, error: 'Gagal memperbarui materi.' });
   }
 });
+
+// Delete material/video
+router.delete('/units/:unitId/materials/:id', async (req, res) => {
+  console.log('=== DELETE ROUTE CALLED ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Params:', req.params);
+
+  const unitId = req.params.unitId;
+  const materialId = req.params.id;
+
+  try {
+    // Get material info untuk hapus file
+    const material = await db.queryOne('SELECT * FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+
+    if (material) {
+      // Hapus file video jika ada
+      if (material.media_url && material.media_url.startsWith('/uploads/videos/')) {
+        const videoPath = path.join(__dirname, '../../public', material.media_url);
+        if (fs.existsSync(videoPath)) {
+          fs.unlinkSync(videoPath);
+          console.log('Deleted video file:', videoPath);
+        }
+      }
+
+      // Hapus thumbnail jika ada
+      if (material.video_thumbnail && material.video_thumbnail.startsWith('/uploads/thumbnails/')) {
+        const thumbPath = path.join(__dirname, '../../public', material.video_thumbnail);
+        if (fs.existsSync(thumbPath)) {
+          fs.unlinkSync(thumbPath);
+          console.log('Deleted thumbnail file:', thumbPath);
+        }
+      }
+
+      // Delete from database
+      await db.query('DELETE FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+      console.log('Deleted material from database:', materialId);
+    }
+
+    // Redirect back
+    const referer = req.get('Referer');
+    if (referer && referer.includes('/admin/materials')) {
+      return res.redirect('/admin/materials');
+    }
+
+    const unitRow = await db.queryOne('SELECT module_id FROM units WHERE id = ?', [unitId]);
+    if (unitRow) {
+      return res.redirect(`/admin/modules/${unitRow.module_id}`);
+    }
+    return res.redirect('/admin/materials');
+  } catch (err) {
+    console.error('Delete material error:', err);
+    res.redirect('/admin/materials');
+  }
+});
+
+// Delete material/video (POST alternative - more reliable)
+router.post('/units/:unitId/materials/:id/delete', async (req, res) => {
+  console.log('=== DELETE (POST) ROUTE CALLED ===');
+
+  const unitId = req.params.unitId;
+  const materialId = req.params.id;
+
+  try {
+    // Get material info untuk hapus file
+    const material = await db.queryOne('SELECT * FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+
+    if (material) {
+      console.log('Deleting material:', material.title);
+
+      // Hapus file video jika ada
+      if (material.media_url && material.media_url.startsWith('/uploads/videos/')) {
+        const videoPath = path.join(__dirname, '../../public', material.media_url);
+        if (fs.existsSync(videoPath)) {
+          fs.unlinkSync(videoPath);
+          console.log('✅ Deleted video file:', videoPath);
+        }
+      }
+
+      // Hapus thumbnail jika ada
+      if (material.video_thumbnail && material.video_thumbnail.startsWith('/uploads/thumbnails/')) {
+        const thumbPath = path.join(__dirname, '../../public', material.video_thumbnail);
+        if (fs.existsSync(thumbPath)) {
+          fs.unlinkSync(thumbPath);
+          console.log('✅ Deleted thumbnail file:', thumbPath);
+        }
+      }
+
+      // Delete from database
+      await db.query('DELETE FROM materials WHERE id = ? AND unit_id = ?', [materialId, unitId]);
+      console.log('✅ Deleted material from database:', materialId);
+    }
+
+    // Redirect back
+    const referer = req.get('Referer');
+    if (referer && referer.includes('/admin/materials')) {
+      return res.redirect('/admin/materials');
+    }
+
+    const unitRow = await db.queryOne('SELECT module_id FROM units WHERE id = ?', [unitId]);
+    if (unitRow) {
+      return res.redirect(`/admin/modules/${unitRow.module_id}`);
+    }
+    return res.redirect('/admin/materials');
+  } catch (err) {
+    console.error('❌ Delete material error:', err);
+    res.redirect('/admin/materials');
+  }
+});
+
+
 
 // Manajemen Aktivitas (Ujian/Kuis/Tugas) per Unit
 router.get('/units/:unitId/activities', async (req, res) => {

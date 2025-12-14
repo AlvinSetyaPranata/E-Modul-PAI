@@ -1,13 +1,28 @@
-<!-- Header -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div>
-    <h2 class="fw-bold mb-1">➕ Tambah Materi Baru</h2>
-    <p class="text-muted mb-0">Unit: <%= unit.title %>
-    </p>
-  </div>
+<!-- Header dengan Gradient -->
+<div class="mb-4">
+  <h2 class="fw-bold mb-2"
+    style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+    ➕ Tambah Video Pembelajaran Baru
+  </h2>
+  <p class="text-muted">Tambahkan video pembelajaran untuk Unit: <%= unit[0].title %>
+  </p>
+</div>
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb mb-3">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="/admin/dashboard">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="/admin/materials">Materi</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Tambah Video</li>
+  </ol>
+</nav>
+
+<!-- Tombol Navigasi -->
+<div class="mb-3 d-flex justify-content-between align-items-center">
+  <div></div>
   <div class="d-flex gap-2">
-    <a href="/admin/modules/<%= unit.module_id %>" class="btn btn-outline-secondary btn-sm">
-      <i class="bi bi-arrow-left"></i> Kembali ke Modul
+    <a href="/admin/materials" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Kembali
     </a>
     <a href="/admin/dashboard" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-house"></i> Dashboard
@@ -15,74 +30,194 @@
   </div>
 </div>
 
+<!-- Info Box -->
+<div class="alert alert-primary d-flex align-items-start mb-4" role="alert">
+  <i class="bi bi-lightbulb-fill me-3 fs-4"></i>
+  <div>
+    <h5 class="alert-heading">Tips Menambahkan Video Pembelajaran</h5>
+    <p class="mb-0">
+      • Gunakan <strong>YouTube</strong> atau <strong>Vimeo</strong> untuk video yang lebih besar (lebih cepat & hemat
+      storage)<br>
+      • Upload langsung untuk video pendek (<100MB) yang ingin Anda simpan di server<br>
+        • Tambahkan thumbnail agar tampilan lebih menarik<br>
+        • Pastikan durasi video sesuai dengan target pembelajaran Anda
+    </p>
+  </div>
+</div>
+
+<!-- Form Tambah Video -->
 <div class="card border-0 shadow-sm">
   <div class="card-body">
-    <form method="POST" action="/admin/units/<%= unit.id %>/materials" enctype="multipart/form-data">
-      <div class="mb-3">
-        <label for="title" class="form-label fw-bold">Judul Materi <span class="text-danger">*</span></label>
-        <input type="text" class="form-control" id="title" name="title" required>
+    <form method="POST" action="/admin/units/<%= unit[0].id %>/materials" enctype="multipart/form-data"
+      id="addVideoForm">
+
+      <div class="mb-4">
+        <label for="title" class="form-label fw-bold">
+          <i class="bi bi-card-heading"></i> Judul Video <span class="text-danger">*</span>
+        </label>
+        <input type="text" class="form-control form-control-lg" id="title" name="title"
+          placeholder="Contoh: Etika Digital dan Akhlakul Karimah di Media Sosial" required>
+        <small class="text-muted">Berikan judul yang jelas dan menarik untuk menarik perhatian mahasiswa</small>
       </div>
 
-      <div class="mb-3">
-        <label for="content" class="form-label fw-bold">Konten Materi</label>
-        <textarea class="form-control" id="content" name="content" rows="8"
-          placeholder="Teks materi, bisa berisi penjelasan PAI, ayat, hadis, dsb."></textarea>
-        <small class="text-muted">Isi dengan konten pembelajaran lengkap</small>
+      <div class="mb-4">
+        <label for="content" class="form-label fw-bold">
+          <i class="bi bi-file-text"></i> Deskripsi Video (Opsional)
+        </label>
+        <textarea class="form-control" id="content" name="content" rows="4"
+          placeholder="Tambahkan deskripsi, ringkasan, atau poin-poin penting dari video..."></textarea>
+        <small class="text-muted">Deskripsi membantu mahasiswa memahami konten video sebelum menonton</small>
       </div>
 
-      <div class="mb-3">
-        <label for="media_type" class="form-label fw-bold">Tipe Media</label>
-        <select class="form-select" id="media_type" name="media_type">
-          <option value="">-- Tidak Ada Media --</option>
-          <option value="TEXT">TEXT</option>
-          <option value="VIDEO">VIDEO</option>
-          <option value="AUDIO">AUDIO</option>
-          <option value="IMAGE">IMAGE</option>
-          <option value="DOCUMENT">DOCUMENT</option>
-          <option value="ANIMATION">ANIMATION</option>
-        </select>
-      </div>
+      <input type="hidden" name="media_type" value="VIDEO">
+      <input type="hidden" name="is_video_based" value="1">
 
       <!-- Pilihan Upload Method -->
-      <div class="mb-3">
-        <label class="form-label fw-bold">Metode Upload Media (Opsional)</label>
-        <div class="btn-group w-100" role="group">
-          <input type="radio" class="btn-check" name="upload_method" id="method_url" value="url" checked>
-          <label class="btn btn-outline-primary" for="method_url">
-            <i class="bi bi-link-45deg"></i> URL/Link
-          </label>
-
-          <input type="radio" class="btn-check" name="upload_method" id="method_file" value="file">
-          <label class="btn btn-outline-primary" for="method_file">
-            <i class="bi bi-file-earmark-arrow-up"></i> Upload File
-          </label>
+      <div class="mb-4">
+        <label class="form-label fw-bold">
+          <i class="bi bi-cloud-upload"></i> Metode Upload Video <span class="text-danger">*</span>
+        </label>
+        <div class="upload-method-selector">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <input type="radio" class="btn-check" name="upload_method" id="method_url" value="url" checked>
+              <label class="method-card" for="method_url">
+                <div class="method-icon">
+                  <i class="bi bi-link-45deg"></i>
+                </div>
+                <h6 class="mb-2">URL/Link Video</h6>
+                <p class="small text-muted mb-0">YouTube, Vimeo, Google Drive, atau URL lainnya</p>
+                <div class="method-check">
+                  <i class="bi bi-check-circle-fill"></i>
+                </div>
+              </label>
+            </div>
+            <div class="col-md-6">
+              <input type="radio" class="btn-check" name="upload_method" id="method_file" value="file">
+              <label class="method-card" for="method_file">
+                <div class="method-icon">
+                  <i class="bi bi-file-earmark-arrow-up"></i>
+                </div>
+                <h6 class="mb-2">Upload File Video</h6>
+                <p class="small text-muted mb-0">Upload file video dari komputer Anda</p>
+                <div class="method-check">
+                  <i class="bi bi-check-circle-fill"></i>
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- URL Input -->
-      <div class="mb-3" id="url_input">
-        <label for="media_url" class="form-label fw-bold">URL Media</label>
-        <input type="url" class="form-control" id="media_url" name="media_url"
-          placeholder="https://www.youtube.com/embed/abc123">
-        <small class="text-muted">Link ke video/audio/gambar eksternal</small>
+      <div class="mb-4" id="url_input">
+        <label for="media_url" class="form-label fw-bold">
+          <i class="bi bi-link-45deg"></i> URL Video <span class="text-danger">*</span>
+        </label>
+        <input type="text" class="form-control form-control-lg" id="media_url" name="media_url"
+          placeholder="https://www.youtube.com/embed/VIDEO_ID">
+
+        <div class="mt-3">
+          <div class="accordion" id="urlHelp">
+            <div class="accordion-item">
+              <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#collapseHelp">
+                  <i class="bi bi-question-circle me-2"></i> Cara mendapatkan URL Embed YouTube/Vimeo
+                </button>
+              </h2>
+              <div id="collapseHelp" class="accordion-collapse collapse" data-bs-parent="#urlHelp">
+                <div class="accordion-body">
+                  <h6><strong>YouTube:</strong></h6>
+                  <ol class="small">
+                    <li>Buka video di YouTube</li>
+                    <li>Klik tombol "Share" di bawah video</li>
+                    <li>Pilih "Embed"</li>
+                    <li>Salin URL dari <code>src="..."</code></li>
+                    <li>Contoh: <code>https://www.youtube.com/embed/dQw4w9WgXcQ</code></li>
+                  </ol>
+                  <h6 class="mt-3"><strong>Vimeo:</strong></h6>
+                  <ol class="small">
+                    <li>Buka video di Vimeo</li>
+                    <li>Klik tombol "Share"</li>
+                    <li>Salin link dari bagian embed code</li>
+                    <li>Contoh: <code>https://player.vimeo.com/video/123456789</code></li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- File Upload (Hidden by default) -->
-      <div class="mb-3 d-none" id="file_input">
-        <label for="media_file" class="form-label fw-bold">Upload File Media</label>
-        <input type="file" class="form-control" id="media_file" name="media_file" accept="*/*">
-        <small class="text-muted">Upload file dari komputer Anda (Max 50MB)</small>
+      <div class="mb-4 d-none" id="file_input">
+        <div class="alert alert-info">
+          <i class="bi bi-info-circle-fill"></i>
+          <strong>Informasi Upload Video:</strong><br>
+          • Maksimal ukuran file: <strong>200MB</strong><br>
+          • Format yang didukung: <strong>MP4, WEBM, MOV, AVI</strong><br>
+          • Durasi: <strong>Tidak terbatas</strong> (2-10 menit atau lebih, semua bisa)<br>
+          • Setiap unit bisa punya <strong>banyak video</strong> (7+ video tidak masalah)<br>
+          • Rekomendasi: Video 720p atau 1080p, kompres jika perlu
+        </div>
+
+        <label for="video_file" class="form-label fw-bold">
+          <i class="bi bi-film"></i> File Video <span class="text-danger">*</span>
+        </label>
+        <div class="upload-area" id="uploadArea">
+          <input type="file" class="form-control d-none" id="video_file" name="video_file"
+            accept="video/mp4,video/webm,video/quicktime,video/x-msvideo">
+          <div class="upload-placeholder" onclick="document.getElementById('video_file').click()">
+            <i class="bi bi-cloud-arrow-up display-4 text-primary mb-3"></i>
+            <p class="mb-1"><strong>Klik untuk memilih video</strong></p>
+            <p class="small text-muted">atau drag & drop file video di sini</p>
+            <p class="small text-muted">MP4, WEBM, MOV, AVI (Max: 100MB)</p>
+          </div>
+          <div class="upload-info d-none" id="uploadInfo">
+            <i class="bi bi-file-earmark-play text-success fs-1 mb-2"></i>
+            <p class="mb-1"><strong id="fileName"></strong></p>
+            <p class="small text-muted" id="fileSize"></p>
+            <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearVideoFile()">
+              <i class="bi bi-trash"></i> Hapus
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <label for="thumbnail_file" class="form-label fw-bold">
+            <i class="bi bi-image"></i> Thumbnail/Poster Video (Opsional)
+          </label>
+          <input type="file" class="form-control" id="thumbnail_file" name="thumbnail_file"
+            accept="image/jpeg,image/png,image/webp">
+          <small class="text-muted">Gambar preview sebelum video diputar (JPG, PNG, WEBP, Max: 5MB)</small>
+        </div>
+
+        <div class="mt-4">
+          <label for="video_duration" class="form-label fw-bold">
+            <i class="bi bi-clock"></i> Durasi Video (dalam detik) <span class="text-danger">*</span>
+          </label>
+          <div class="input-group">
+            <input type="number" class="form-control" id="video_duration" name="video_duration" placeholder="126"
+              required min="1">
+            <span class="input-group-text">detik</span>
+          </div>
+          <small class="text-muted">
+            Contoh: 2 menit 6 detik = 126 detik<br>
+            <span id="durationHelper" class="text-primary"></span>
+          </small>
+        </div>
       </div>
 
       <hr class="my-4">
 
-      <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary">
-          <i class="bi bi-save"></i> Simpan Materi
-        </button>
-        <a href="/admin/modules/<%= unit.module_id %>" class="btn btn-secondary">
-          <i class="bi bi-x"></i> Batal
+      <div class="d-flex gap-2 justify-content-end">
+        <a href="/admin/materials" class="btn btn-outline-secondary btn-lg">
+          <i class="bi bi-x-circle"></i> Batal
         </a>
+        <button type="submit" class="btn btn-primary btn-lg px-5">
+          <i class="bi bi-check-circle"></i> Simpan Video
+        </button>
       </div>
     </form>
   </div>
@@ -94,37 +229,233 @@
     radio.addEventListener('change', function () {
       const urlInput = document.getElementById('url_input');
       const fileInput = document.getElementById('file_input');
+      const mediaUrlField = document.getElementById('media_url');
+      const videoDurationField = document.getElementById('video_duration');
 
       if (this.value === 'url') {
         urlInput.classList.remove('d-none');
         fileInput.classList.add('d-none');
-        document.getElementById('media_file').value = '';
+        mediaUrlField.required = true;
+        videoDurationField.required = false;
+        // Clear file inputs
+        document.getElementById('video_file').value = '';
+        document.getElementById('thumbnail_file').value = '';
+        clearVideoFile();
       } else {
         urlInput.classList.add('d-none');
         fileInput.classList.remove('d-none');
-        document.getElementById('media_url').value = '';
+        mediaUrlField.required = false;
+        videoDurationField.required = true;
+        // Clear URL input
+        mediaUrlField.value = '';
       }
     });
+  });
+
+  // Video file handler
+  const videoFileInput = document.getElementById('video_file');
+  const uploadPlaceholder = document.querySelector('.upload-placeholder');
+  const uploadInfo = document.getElementById('uploadInfo');
+
+  videoFileInput.addEventListener('change', function () {
+    const file = this.files[0];
+    if (file) {
+      const fileSize = file.size / (1024 * 1024); // Convert to MB
+      if (fileSize > 200) {
+        alert('❌ Ukuran file terlalu besar!\n\nMaksimal: 200MB\nFile Anda: ' + fileSize.toFixed(2) + 'MB\n\nSilakan kompres video terlebih dahulu.');
+        this.value = '';
+        return;
+      }
+
+      // Show file info
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = fileSize.toFixed(2) + ' MB';
+      uploadPlaceholder.classList.add('d-none');
+      uploadInfo.classList.remove('d-none');
+    }
+  });
+
+  function clearVideoFile() {
+    document.getElementById('video_file').value = '';
+    uploadPlaceholder.classList.remove('d-none');
+    uploadInfo.classList.add('d-none');
+  }
+
+  // Duration helper
+  const durationInput = document.getElementById('video_duration');
+  const durationHelper = document.getElementById('durationHelper');
+
+  durationInput.addEventListener('input', function () {
+    const seconds = parseInt(this.value) || 0;
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    if (seconds > 0) {
+      durationHelper.textContent = `= ${minutes} menit ${secs} detik`;
+    } else {
+      durationHelper.textContent = '';
+    }
+  });
+
+  // Drag and drop
+  const uploadArea = document.getElementById('uploadArea');
+
+  uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('drag-over');
+  });
+
+  uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('drag-over');
+  });
+
+  uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      videoFileInput.files = files;
+      videoFileInput.dispatchEvent(new Event('change'));
+    }
+  });
+
+  // Form validation
+  document.getElementById('addVideoForm').addEventListener('submit', function (e) {
+    const uploadMethod = document.querySelector('input[name="upload_method"]:checked').value;
+
+    if (uploadMethod === 'url') {
+      const url = document.getElementById('media_url').value.trim();
+      if (!url) {
+        e.preventDefault();
+        alert('❌ URL Video harus diisi!');
+        return;
+      }
+    } else {
+      const videoFile = document.getElementById('video_file').files[0];
+      const duration = document.getElementById('video_duration').value;
+
+      if (!videoFile) {
+        e.preventDefault();
+        alert('❌ File video harus dipilih!');
+        return;
+      }
+
+      if (!duration || duration < 1) {
+        e.preventDefault();
+        alert('❌ Durasi video harus diisi dengan angka minimal 1 detik!');
+        return;
+      }
+    }
   });
 </script>
 
 <style>
   .card {
-    border-radius: 12px;
+    border-radius: 16px;
   }
 
   .form-label {
     color: #2d3748;
+    font-size: 0.95rem;
+  }
+
+  .form-control:focus,
+  .form-select:focus {
+    border-color: #4facfe;
+    box-shadow: 0 0 0 0.2rem rgba(79, 172, 254, 0.25);
   }
 
   .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     border: none;
+    transition: all 0.3s ease;
   }
 
   .btn-primary:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 6px 20px rgba(79, 172, 254, 0.4);
+  }
+
+  .method-card {
+    display: block;
+    padding: 1.5rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    text-align: center;
+  }
+
+  .method-card:hover {
+    border-color: #4facfe;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(79, 172, 254, 0.2);
+  }
+
+  .btn-check:checked+.method-card {
+    border-color: #4facfe;
+    background: linear-gradient(135deg, #e0f7ff 0%, #f0fdff 100%);
+  }
+
+  .method-icon {
+    font-size: 3rem;
+    color: #4facfe;
+    margin-bottom: 1rem;
+  }
+
+  .method-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+    color: #e2e8f0;
+    transition: all 0.3s ease;
+  }
+
+  .btn-check:checked+.method-card .method-check {
+    color: #10b981;
+  }
+
+  .upload-area {
+    border: 2px dashed #cbd5e0;
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+
+  .upload-area:hover,
+  .upload-area.drag-over {
+    border-color: #4facfe;
+    background: #f0fdff;
+  }
+
+  .upload-placeholder i {
+    transition: all 0.3s ease;
+  }
+
+  .upload-area:hover .upload-placeholder i {
+    transform: translateY(-8px);
+  }
+
+  .accordion-button:not(.collapsed) {
+    background: linear-gradient(135deg, #e0f7ff 0%, #f0fdff 100%);
+    color: #0c4a6e;
+  }
+
+  .alert-primary {
+    background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+    border: none;
+    border-left: 4px solid #4facfe;
+  }
+
+  .alert-info {
+    background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+    border: none;
+    border-left: 4px solid #0ea5e9;
   }
 </style>

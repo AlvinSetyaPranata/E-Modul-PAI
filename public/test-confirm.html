@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Test Konfirmasi Hapus</title>
+</head>
+
+<body>
+    <h1>Test Konfirmasi Hapus Video</h1>
+
+    <p>Jika tombol di bawah ini menampilkan konfirmasi saat diklik, berarti JavaScript Anda bekerja:</p>
+
+    <form method="POST" action="/test"
+        onsubmit="return confirm('❌ Hapus video ini?\n\nVideo dan file terkait akan dihapus permanen.');">
+        <button type="submit" style="background: red; color: white; padding: 10px 20px; font-size: 16px;">
+            🗑️ Test Hapus
+        </button>
+    </form>
+
+    <hr>
+
+    <h2>Test Result:</h2>
+    <ul>
+        <li>✅ Jika popup konfirmasi muncul → JavaScript bekerja</li>
+        <li>❌ Jika langsung submit tanpa popup → JavaScript tidak berjalan</li>
+    </ul>
+
+    <hr>
+
+    <h2>Troubleshooting:</h2>
+    <ol>
+        <li><strong>Buka Console (F12)</strong> - Lihat error JavaScript</li>
+        <li><strong>Cek Network Tab</strong> - Lihat request yang dikirim</li>
+        <li><strong>Hard Refresh</strong> - Ctrl + Shift + R</li>
+        <li><strong>Clear Cache Total</strong> - Settings > Clear browsing data</li>
+        <li><strong>Incognito Mode</strong> - Ctrl + Shift + N</li>
+    </ol>
+
+    <script>
+        console.log('✅ JavaScript is loaded and running!');
+        console.log('Browser:', navigator.userAgent);
+    </script>
+</body>
+
+</html>
